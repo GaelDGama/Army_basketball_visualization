@@ -1,38 +1,76 @@
 import pandas as pd
-import pygal
+import plotly.graph_objects as go
+import streamlit as st
+
 
 df = pd.read_csv('Army_mens_basketball.csv')
 
 dfpro = pd.read_csv('Pro_Players_College.csv')
 
-radar_chart = pygal.Radar()
 
-columns_to_drop = ['Pos', 'MP','Awards']
+columns_to_drop = ['Pos', 'MP','Awards',]
 
 df.drop(columns=columns_to_drop, inplace=True)
 dfpro.drop(columns=columns_to_drop, inplace=True)
 
-player_Army = input('what player do you want to see: ').title()
+columns_to_drop = []
 
-classes = list(df[df['Player'] == player_Army].iloc[0])[0]
+options = df.columns.to_list()
+selection = st.pills("What Statisitcs would you like to see", options, selection_mode="multi")
+st.markdown(f"Your selected options: {selection}.")
 
-players = dfpro['Player']
 
-for i in set(players):
-        print(i)
+for i in options[:]:
+    if i not in selection:
+        remove = options.pop(options.index(i))
+        columns_to_drop.append(i)
 
-Pro_player=input(f'What pro player do you want to compare him to: ')
+#How you get the army player
+player_Army = st.text_input("what Army Player do you want to see", placeholder='Ryan Curry').title()
+ARMY = df.loc[df['Player'] == player_Army]
 
-i = df[df['Player'] == player_Army]
-z = dfpro[(dfpro['Player'] == Pro_player) & (dfpro['Class'] == classes)]
+#how to get the pro player
+Pro_player = st.text_input("what Pro Player do you want to see", placeholder='Jimmy Butler').title()
+PRO = dfpro.loc[(dfpro['Player'] == Pro_player) & (dfpro['Class'] == ARMY['Class'].iloc[0])]
 
-important = list(df.columns[5:10])
-zimportant = list(dfpro.columns[5:10])
+#Creating the list so you can plot the values
+#filter out the columns that are not selected
+r_Army = ARMY.drop(columns= columns_to_drop, inplace=False)
+r_Army = r_Army.iloc[0].to_list()
+r_Pro_player = PRO.drop(columns=columns_to_drop, inplace=False)
+r_Pro_player = r_Pro_player.iloc[0].to_list()
 
-x_values = list(i[important].iloc[0])
-prox_values = list(z[zimportant].iloc[0])
+r_range = max(r_Army + r_Pro_player)
+    
 
-radar_chart.x_labels = important
-radar_chart.add(player_Army, x_values)
-radar_chart.add(Pro_player, prox_values)
-radar_chart.render_to_file('BBPanda.svg')
+
+
+#Plotting the two radar charts
+fig = go.Figure()
+
+fig.add_trace(go.Scatterpolar(
+      r=r_Army,
+      theta=selection,
+      fill='toself',
+      name=player_Army,
+      fillcolor='rgba(0, 0, 255, 0.3)'
+))
+fig.add_trace(go.Scatterpolar(
+      r=r_Pro_player,
+      theta=selection,
+      fill='toself',
+      name=Pro_player,
+      fillcolor='rgba(255, 0, 0, 0.3)'
+))
+
+fig.update_layout(
+  polar=dict(
+    radialaxis=dict(
+      visible=True,
+      range=[0,r_range]
+    )),
+  showlegend=False
+)
+
+
+st.plotly_chart(fig)
